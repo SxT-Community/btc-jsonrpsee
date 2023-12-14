@@ -1,3 +1,5 @@
+This version of jsonrpsee has been modified to be compatible with Bitcoin RPC nodes
+
 # jsonrpsee
 
 [![GitLab Status](https://gitlab.parity.io/parity/mirrors/jsonrpsee/badges/master/pipeline.svg)](https://gitlab.parity.io/parity/mirrors/jsonrpsee/-/pipelines)
