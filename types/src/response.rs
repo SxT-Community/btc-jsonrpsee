@@ -27,6 +27,7 @@
 //! Types pertaining to JSON-RPC responses.
 
 use std::borrow::Cow as StdCow;
+use std::error::Error;
 use std::fmt;
 use std::marker::PhantomData;
 
@@ -36,6 +37,7 @@ use crate::request::Notification;
 use crate::{ErrorObject, ErrorObjectOwned};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::de::MapAccess;
 
 /// JSON-RPC response object as defined in the [spec](https://www.jsonrpc.org/specification#response_object).
 pub struct Response<'a, T: Clone> {
@@ -261,13 +263,38 @@ where
 							if result.is_some() {
 								return Err(serde::de::Error::duplicate_field("result"));
 							}
-							result = Some(map.next_value()?);
+							// Bitcoin's RPC implementation returns both the result and error fields
+							// In the case of a successful response, the error is 'null'
+							let maybe_result: Result<StdCow<T>, V::Error> = map.next_value();
+							match maybe_result {
+								Ok(r) => {
+									result = Some(r);
+								}
+								Err(e) => {
+									if e.to_string().starts_with("invalid type: null") {
+										result = None
+									}
+								}
+							}
 						}
 						Field::Error => {
 							if error.is_some() {
 								return Err(serde::de::Error::duplicate_field("error"));
 							}
-							error = Some(map.next_value()?);
+
+							// Bitcoin's RPC implementation returns both the result and error fields
+							// In the case of a successful response, the error is 'null'
+							let maybe_error: Result<ErrorObject, V::Error> = map.next_value();
+							match maybe_error {
+								Ok(e) => {
+									error = Some(e);
+								}
+								Err(e) => {
+									if e.to_string().starts_with("invalid type: null") {
+										error = None
+									}
+								}
+							}
 						}
 						Field::Id => {
 							if id.is_some() {
